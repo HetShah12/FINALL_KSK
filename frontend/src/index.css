@@ -1,0 +1,359 @@
+ /* frontend/src/index.css */
+ :root {
+   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+   line-height: 1.5;
+   font-weight: 400;
+   color: #213547;
+   background-color: #ffffff; /* Default white background */
+   font-synthesis: none;
+   text-rendering: optimizeLegibility;
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale;
+ }
+ body, html, #root {
+   margin: 0;
+   padding: 0;
+   width: 100%;
+   height: 100%;
+ }
+ 
+ #root {
+     display: flex;
+     justify-content: center; /* Centers PageContainer if smaller than viewport */
+     align-items: flex-start; /* Aligns PageContainer to top if smaller */
+     /* background-color: #f0f0f0; /* Optional: different color outside PageContainer */
+ }
+ * {
+   box-sizing: border-box;
+ }
+
+@font-face {
+  font-family: 'Bebas Neue Custom';
+  src: url('/fonts/BebasNeue-Regular.ttf') format('truetype');
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+
+/* --- Dancing Script --- */
+@font-face {
+  font-family: 'Dancing Script Custom';
+  src: url('/fonts/DancingScript-Regular.ttf') format('truetype');
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Dancing Script Custom';
+  src: url('/fonts/DancingScript-Bold.ttf') format('truetype');
+  font-weight: bold; /* Or 700 */
+  font-style: normal;
+}
+
+/* --- Flagfies --- */
+@font-face {
+  font-family: 'Flagfies Custom';
+  src: url('/fonts/Flagfies.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* --- Fredoka --- */
+/* Assuming FredokaOne-Regular.ttf is the primary text font */
+@font-face {
+  font-family: 'Fredoka Custom';
+  src: url('/fonts/FredokaOne-Regular.ttf') format('truetype');
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+/* Fredoka Dingbats - symbol font, likely not for text input */
+@font-face {
+  font-family: 'Fredoka Dingbats Custom';
+  src: url('/fonts/Fredoka dingbats.ttf') format('truetype');
+}
+
+
+/* --- Great Vibes --- */
+@font-face {
+  font-family: 'Great Vibes Custom';
+  src: url('/fonts/GreatVibes-Regular-webfont.ttf') format('truetype');
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+
+/* --- Lato --- */
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Hairline.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-HairlineItalic.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Thin.ttf') format('truetype');
+  font-weight: 200; /* Common mapping for Thin if Hairline is 100 */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-ThinItalic.ttf') format('truetype');
+  font-weight: 200;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Regular.ttf') format('truetype');
+  font-weight: 400; /* normal */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Italic.ttf') format('truetype');
+  font-weight: 400; /* normal */
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-SemiboldItalic.ttf') format('truetype');
+  font-weight: 600;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Bold.ttf') format('truetype');
+  font-weight: 700; /* bold */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-BoldItalic.ttf') format('truetype');
+  font-weight: 700; /* bold */
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Heavy.ttf') format('truetype');
+  font-weight: 800; /* Often maps to Heavy or ExtraBold */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-HeavyItalic.ttf') format('truetype');
+  font-weight: 800;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Lato Custom';
+  src: url('/fonts/Lato-BlackItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+}
+
+
+/* --- Montserrat --- */
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-ThinItalic.ttf') format('truetype');
+  font-weight: 100;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-ExtraLightItalic.ttf') format('truetype');
+  font-weight: 200;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-LightItalic.ttf') format('truetype');
+  font-weight: 300;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight: 400; /* normal */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Italic.ttf') format('truetype');
+  font-weight: 400; /* normal */
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-MediumItalic.ttf') format('truetype');
+  font-weight: 500;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-SemiBoldItalic.ttf') format('truetype');
+  font-weight: 600;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Bold.ttf') format('truetype');
+  font-weight: 700; /* bold */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-BoldItalic.ttf') format('truetype');
+  font-weight: 700; /* bold */
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-ExtraBoldItalic.ttf') format('truetype');
+  font-weight: 800;
+  font-style: italic;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Montserrat Custom';
+  src: url('/fonts/Montserrat-BlackItalic.ttf') format('truetype');
+  font-weight: 900;
+  font-style: italic;
+}
+
+/* --- Oswald --- */
+@font-face {
+  font-family: 'Oswald Custom';
+  src: url('/fonts/Oswald-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Oswald Custom';
+  src: url('/fonts/Oswald-Regular.ttf') format('truetype');
+  font-weight: 400; /* normal */
+  font-style: normal;
+}
+@font-face {
+  font-family: 'Oswald Custom';
+  src: url('/fonts/Oswald-Bold.ttf') format('truetype');
+  font-weight: 700; /* bold */
+  font-style: normal;
+}
+
+/* --- Pacifico --- */
+@font-face {
+  font-family: 'Pacifico Custom';
+  src: url('/fonts/Pacifico.ttf') format('truetype'); /* Assuming Pacifico.ttf is Pacifico-Regular */
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+
+/* --- Raleway --- */
+@font-face {
+  font-family: 'Raleway Custom';
+  src: url('/fonts/Raleway-Regular.ttf') format('truetype');
+  /* Add more @font-face rules if you have other Raleway .ttf files for weights/styles */
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+
+/* --- Satisfy --- */
+@font-face {
+  font-family: 'Satisfy Custom';
+  src: url('/fonts/Satisfy-Regular.ttf') format('truetype');
+  font-weight: normal; /* Or 400 */
+  font-style: normal;
+}
+
+/* --- STENCIL --- */
+@font-face {
+  font-family: 'Stencil Custom';
+  src: url('/fonts/STENCIL.TTF') format('truetype'); /* Note the uppercase TTF */
+  font-weight: normal; /* Or 400, or adjust if it's inherently bold */
+  font-style: normal;
+}
+
+body {
+  margin: 0;
+  /* Other global styles */
+}

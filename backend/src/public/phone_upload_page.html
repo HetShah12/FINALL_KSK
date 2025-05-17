@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Upload to Kiosk</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 20px; background-color: #f0f2f5; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 90vh; text-align: center; }
+        .container { background-color: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
+        h1 { color: #333; margin-top: 0; margin-bottom: 10px; font-size: 1.5em; }
+        p { color: #555; margin-bottom: 20px; font-size: 0.9em; }
+        input[type="file"] { display: none; }
+        label.file-label { display: inline-block; padding: 12px 25px; background-color: #007bff; color: white; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: 500; transition: background-color 0.2s; margin-bottom: 20px; }
+        label.file-label:hover { background-color: #0056b3; }
+        img#preview { display: none; max-width: 100%; max-height: 250px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ddd; object-fit: contain; }
+        button#uploadButton { display: none; width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: 500; transition: background-color 0.2s; }
+        button#uploadButton:hover { background-color: #1e7e34; }
+        button#uploadButton:disabled { background-color: #ccc; cursor: not-allowed; }
+        .status { margin-top: 15px; font-weight: bold; min-height: 1.5em; }
+        .success { color: green; } .error { color: red; } .info { color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Image to Kiosk</h1>
+        <p>Target Side: <strong id="targetSideText">...</strong></p>
+        <p>Target Kiosk: <strong id="targetKioskIdText">...</strong></p>
+
+        <label for="imageFile" class="file-label">Choose Image</label>
+        <input type="file" id="imageFile" accept="image/*">
+        
+        <img id="preview" src="#" alt="Selected image preview">
+        <button id="uploadButton">Upload to Kiosk</button>
+        <p id="statusMessage" class="status"></p>
+    </div>
+
+    <script>
+        const imageFileEl = document.getElementById('imageFile');
+        const previewEl = document.getElementById('preview');
+        const uploadButtonEl = document.getElementById('uploadButton');
+        const statusMessageEl = document.getElementById('statusMessage');
+        const targetSideTextEl = document.getElementById('targetSideText');
+        const targetKioskIdTextEl = document.getElementById('targetKioskIdText');
+
+        let kioskId = '';
+        let side = '';
+        let selectedImageDataUrl = null;
+        let originalFileName = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            kioskId = urlParams.get('kioskId');
+            side = urlParams.get('side');
+
+            if (kioskId && side) {
+                targetKioskIdTextEl.textContent = kioskId.substring(0, 10) + "...";
+                targetSideTextEl.textContent = side.charAt(0).toUpperCase() + side.slice(1);
+            } else {
+                showStatus('Error: Missing kiosk ID or side information in URL.', 'error');
+                uploadButtonEl.disabled = true;
+                document.querySelector('.file-label').style.display = 'none';
+            }
+        });
+
+        imageFileEl.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            statusMessageEl.textContent = '';
+            if (file) {
+                if (!file.type.startsWith('image/')) {
+                    showStatus('Please select a valid image file.', 'error');
+                    previewEl.style.display = 'none';
+                    uploadButtonEl.style.display = 'none';
+                    selectedImageDataUrl = null;
+                    originalFileName = '';
+                    return;
+                }
+                originalFileName = file.name;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    selectedImageDataUrl = e.target.result;
+                    previewEl.src = selectedImageDataUrl;
+                    previewEl.style.display = 'block';
+                    uploadButtonEl.style.display = 'block';
+                    uploadButtonEl.disabled = false;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewEl.style.display = 'none';
+                uploadButtonEl.style.display = 'none';
+                selectedImageDataUrl = null;
+                originalFileName = '';
+            }
+        });
+
+        uploadButtonEl.addEventListener('click', async () => {
+            if (!selectedImageDataUrl || !kioskId || !side) {
+                showStatus('No image selected or missing kiosk info.', 'error');
+                return;
+            }
+            uploadButtonEl.disabled = true;
+            showStatus('Uploading...', 'info');
+
+            try {
+                // Note: Server base URL is derived if this HTML is served from the same server
+                // If your backend is elsewhere, you'd need to specify the full URL.
+                // const serverBaseUrl = `${window.location.protocol}//${window.location.hostname}:5001`; // If backend on diff port
+                const serverBaseUrl = ''; // Assumes same origin
+
+                const response = await fetch(`${serverBaseUrl}/upload_to_kiosk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        imageDataUrl: selectedImageDataUrl,
+                        originalFileName: originalFileName,
+                        kioskId: kioskId,
+                        side: side
+                    })
+                });
+                
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    showStatus('Upload successful! Image sent to kiosk.', 'success');
+                    previewEl.style.display = 'none';
+                    uploadButtonEl.style.display = 'none';
+                    imageFileEl.value = ''; // Clear file input
+                    selectedImageDataUrl = null;
+                    setTimeout(() => {
+                        if (window.opener) { window.close(); } // Try to close tab if opened by another
+                    }, 2000);
+                } else {
+                    throw new Error(result.message || `Server error: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showStatus(`Upload failed: ${error.message}`, 'error');
+                uploadButtonEl.disabled = false;
+            }
+        });
+
+        function showStatus(message, type) {
+            statusMessageEl.textContent = message;
+            statusMessageEl.className = `status ${type}`;
+        }
+    </script>
+</body>
+</html>

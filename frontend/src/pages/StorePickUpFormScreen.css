@@ -1,0 +1,10 @@
+.inputBaseStyle::placeholder { /* Or target input elements directly */
+  color: rgba(0, 0, 0, 0.36);
+}
+
+/* You could also add the :focus style here if you prefer */
+.inputBaseStyle:focus {
+  border-color: #00566F; /* Example focus color */
+  outline: none;
+  /* box-shadow: 0 0 3px rgba(0, 86, 111, 0.2); */ /* Optional focus shadow */
+}
