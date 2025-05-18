@@ -8,14 +8,14 @@ const thicknessOptions = {
     id: 'standard-card',
     name: 'Forma flow',
     gsm: 180,      // Numeric GSM value
-    price: 349,    // Display price on card
+    price: 399,    // Display price on card
     description: 'Tailored softness with subtle stretch made to move with you.',
   },
   premium: {
     id: 'premium-card',
     name: 'Forma dense',
     gsm: 240,      // Numeric GSM value
-    price: 499,    // Display price on card
+    price: 599,    // Display price on card
     description: 'Pure cotton. Elevated weight. Solid feel.',
   },
 };

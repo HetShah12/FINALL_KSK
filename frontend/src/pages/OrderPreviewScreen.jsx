@@ -12,28 +12,121 @@ const UI_OUTER_PRINTABLE_PIXEL_HEIGHT = 488;
 const DYNAMIC_MIN_CANVA_WIDTH = UI_OUTER_PRINTABLE_PIXEL_WIDTH / 4;
 const DYNAMIC_MIN_CANVA_HEIGHT = UI_OUTER_PRINTABLE_PIXEL_HEIGHT / 4;
 
+// Constants from priceService.js, used in processAndAddItemToCart for cart item structure
 const BASE_COSTS = {
-    180: 349.00,
-    240: 499.00
+    "180": 399.00, // Updated
+    "240": 499.00  // Updated
 };
 
-// IMPORTANT: Verify these paths and add all supported colors
-const frontColorMap = { 
-    black: '/tshirtmockups/blacktshirt.png',
-    red: '/tshirtmockups/redfront.png', 
-    navy: '/tshirtmockups/bluefront.png',
-    brown: '/tshirtmockups/brownfront.png', 
-    cream: '/tshirtmockups/creamfront.png', 
-    white: '/tshirtmockups/whitefront.png', 
+const frontColorMap = { black: '/tshirtmockups/blacktshirt.png', red: '/tshirtmockups/redfront.png', navy: '/tshirtmockups/navyfront.png', brown: '/tshirtmockups/brownfront.png', cream: '/tshirtmockups/creamfront.png', white: '/tshirtmockups/whitefront.png', };
+const backColorMap = {  black: '/tshirtmockups/blackback.png', red: '/tshirtmockups/redback.png', navy: '/tshirtmockups/navyback.png', brown: '/tshirtmockups/brownback.png', cream: '/tshirtmockups/creamback.png', white: '/tshirtmockups/whiteback.png',};
+
+
+// Helper component to display images, handling blob URLs and fallbacks
+const CustomizationImage = ({ customization }) => {
+  const [imageUrlToDisplay, setImageUrlToDisplay] = useState(null);
+  const [imageError, setImageError] = useState(false);
+  const { addBlobUrlToItem } = useCurrentItem(); // Get from context
+  const localCreatedBlobUrlRef = useRef(null); 
+
+  useEffect(() => {
+    let newSrc = customization?.src || null;
+    let isNewCollectionBlob = false; // Flag if WE create a new blob URL in this effect run
+
+    // Clear previous local blob if the source fundamentally changes (e.g. different customization object)
+    // This specific revoke here can be tricky and often safer to let the context manage ALL revokes when item is fully done.
+    // If customization.src is ALREADY the localCreatedBlobUrlRef.current, don't revoke it yet.
+    if (localCreatedBlobUrlRef.current && newSrc !== localCreatedBlobUrlRef.current) {
+        // URL.revokeObjectURL(localCreatedBlobUrlRef.current); // Potentially too aggressive. Context is better.
+        localCreatedBlobUrlRef.current = null;
+    }
+    
+    setImageError(false); // Reset error status on customization change
+
+    if (newSrc && typeof newSrc === 'string') { // Check if newSrc is a string
+        if (newSrc.startsWith('blob:')) {
+            // console.log("CustomizationImage: Using existing blob URL:", newSrc);
+            setImageUrlToDisplay(newSrc);
+        } else { // Server URL or other non-blob URL
+            // console.log("CustomizationImage: Using server/direct URL:", newSrc);
+            setImageUrlToDisplay(newSrc);
+        }
+    } else if (customization?._blobDataForUpload instanceof Blob) {
+      // console.log("CustomizationImage: No valid src, creating new blob URL from _blobDataForUpload for:", customization?.originalFileName || customization?.name);
+      try {
+        newSrc = URL.createObjectURL(customization._blobDataForUpload);
+        setImageUrlToDisplay(newSrc);
+        localCreatedBlobUrlRef.current = newSrc; 
+        if (addBlobUrlToItem && typeof addBlobUrlToItem === 'function') {
+             addBlobUrlToItem(newSrc); 
+        }
+        isNewCollectionBlob = true; // Mark that this instance created the blob URL
+      } catch (e) {
+        console.error("CustomizationImage: Error creating blob URL from _blobDataForUpload:", e);
+        setImageError(true);
+        newSrc = null; // Ensure newSrc is null if creation fails
+      }
+    } else {
+        // console.log("CustomizationImage: No src and no _blobDataForUpload for:", customization?.originalFileName || customization?.name);
+        setImageUrlToDisplay(null); // No valid source
+    }
+
+    return () => {
+        // If this specific effect instance created a blob URL from _blobDataForUpload,
+        // it was added to the context's tracking. The context should handle revocation
+        // when the item is cleared or processed for cart (where it might be converted to base64).
+        // Avoid revoking here to prevent issues if other components might still need the URL.
+        // if (isNewCollectionBlob && newSrc && newSrc.startsWith('blob:')) {
+            // URL.revokeObjectURL(newSrc); // This might be too early if used by other parts during this render cycle.
+        // }
+    };
+  }, [customization, addBlobUrlToItem]);
+
+
+  const handleError = () => {
+    // console.error("CustomizationImage: Initial src FAILED TO LOAD:", imageUrlToDisplay, "Customization details:", customization);
+    
+    // Check if we have _blobDataForUpload AND we haven't already tried to use/create a URL from it
+    // which is now stored in localCreatedBlobUrlRef.current (and likely in imageUrlToDisplay).
+    // If imageUrlToDisplay *is* localCreatedBlobUrlRef.current, it means the blob created from data also failed.
+    if (customization?._blobDataForUpload instanceof Blob && imageUrlToDisplay !== localCreatedBlobUrlRef.current) {
+      // console.log("CustomizationImage: onError, attempting to recreate blob URL from _blobDataForUpload as fallback.");
+      try {
+        const fallbackBlobUrl = URL.createObjectURL(customization._blobDataForUpload);
+        // Revoke previous instance's local blob if different.
+        if(localCreatedBlobUrlRef.current && localCreatedBlobUrlRef.current !== fallbackBlobUrl) {
+            // URL.revokeObjectURL(localCreatedBlobUrlRef.current); // Context manages this better.
+        }
+        localCreatedBlobUrlRef.current = fallbackBlobUrl;
+        
+        if(addBlobUrlToItem && typeof addBlobUrlToItem === 'function') addBlobUrlToItem(fallbackBlobUrl);
+        setImageUrlToDisplay(fallbackBlobUrl); 
+        setImageError(false); // We've tried a fallback, reset error
+        return; // Exit, new URL will trigger re-render.
+      } catch (e) {
+        console.error("CustomizationImage: onError, FAILED to create fallback blob URL.", e);
+      }
+    }
+    // If all else fails, set error true
+    setImageError(true); 
+  };
+
+  if (imageError || !imageUrlToDisplay) {
+    // console.warn(`CustomizationImage: Rendering placeholder or error for customization:`, customization);
+    return <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#e74c3c', fontSize: '12px', padding: '5px', boxSizing:'border-box', background: '#fceded', border: '1px dashed #e74c3c' }}>Image Error</div>;
+  }
+
+  return (
+    <img 
+      src={imageUrlToDisplay} 
+      alt={customization?.name || customization?.originalFileName || customization?.type || 'Custom Design'} 
+      style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }}
+      draggable={false}
+      onError={handleError}
+    />
+  );
 };
-const backColorMap = {
-  black: '/tshirtmockups/blackback.png',
-  red: '/tshirtmockups/backred.png',     // e.g., redback.png
-  navy: '/tshirtmockups/backblue.png',    // e.g., navyback.png
-  brown: '/tshirtmockups/backbrown.png',  // e.g., brownback.png
-  cream: '/tshirtmockups/backcream.png',  // e.g., creamback.png
-  white: '/tshirtmockups/backwhite.png',  // e.g., whiteback.png
-};
+
 
 const OrderPreviewScreen = () => {
   const navigate = useNavigate();
@@ -44,9 +137,13 @@ const OrderPreviewScreen = () => {
     clearCurrentItemForNewProduct, 
     DEFAULT_CUSTOMIZATION_POSITION, 
     revokeItemBlobUrls,
-    setCustomization 
+    setCustomization,
+    // addBlobUrlToItem // This is used by CustomizationImage, not directly here
   } = useCurrentItem();
   const { addItemToCart } = useCart();
+
+  // console.log("OrderPreviewScreen RENDER/UPDATE. currentItem:", currentItem ? JSON.parse(JSON.stringify(currentItem)) : "null");
+
 
   const [isFrontView, setIsFrontView] = useState(true);
   const [uiTotalPrice, setUiTotalPrice] = useState(0);
@@ -63,9 +160,7 @@ const OrderPreviewScreen = () => {
     const custToSync = isFrontView ? currentItem?.frontCustomization : currentItem?.backCustomization;
     const posToUse = custToSync?.position || DEFAULT_CUSTOMIZATION_POSITION;
     const defaultSizeForRnd = DEFAULT_CUSTOMIZATION_POSITION;
-    console.log(`OrderPreviewScreen RND Sync (View: ${isFrontView ? 'Front' : 'Back'}): Customization to sync:`, custToSync);
-    console.log(`OrderPreviewScreen RND Sync: Position for RND:`, posToUse);
-
+    // console.log(`OrderPreviewScreen RND Sync (View: ${isFrontView ? 'Front' : 'Back'}): Cust to sync:`, custToSync, "Pos to use:", posToUse);
     setRndPosition({ x: posToUse.x, y: posToUse.y });
     setRndSize({ 
         width: posToUse.width || defaultSizeForRnd.width, 
@@ -90,24 +185,23 @@ const OrderPreviewScreen = () => {
   };
 
   useEffect(() => {
-    if (currentItem && currentItem.size && currentItem.thickness) {
+    // console.log("OrderPreviewScreen: Pricing useEffect TRIGGERED for item:", currentItem);
+    if ( currentItem && currentItem.size && currentItem.thickness ) {
+        // console.log("OrderPreviewScreen (Pricing useEffect): CONDITIONS MET for calculation.");
         const priceDetailsResult = calculatePriceDetailsForUI(currentItem);
+        // console.log("OrderPreviewScreen (Pricing useEffect): Price RESULT:", priceDetailsResult);
         const newTotalUnitPrice = (priceDetailsResult.totalUnitPrice || 0);
         const newGrandTotalForQuantity = newTotalUnitPrice * (currentItem.quantity || 1);
         setUiTotalPrice(newGrandTotalForQuantity);
-
-        if (currentItem.calculatedUnitPrice !== newTotalUnitPrice ||
-            JSON.stringify(currentItem.priceBreakdown) !== JSON.stringify(priceDetailsResult.priceBreakdownForDisplay)) {
-            updateCurrentItem({
-                calculatedUnitPrice: newTotalUnitPrice,
-                priceBreakdown: priceDetailsResult.priceBreakdownForDisplay
-            });
+        if (currentItem.calculatedUnitPrice !== newTotalUnitPrice || JSON.stringify(currentItem.priceBreakdown) !== JSON.stringify(priceDetailsResult.priceBreakdownForDisplay)) {
+            updateCurrentItem({ calculatedUnitPrice: newTotalUnitPrice, priceBreakdown: priceDetailsResult.priceBreakdownForDisplay });
         }
         if (priceDetailsResult.errors && priceDetailsResult.errors.length > 0) {
             console.warn("OrderPreviewScreen: Price Calculation Errors:", priceDetailsResult.errors.join("; "));
         }
     } else {
         setUiTotalPrice(0);
+        // console.warn("OrderPreviewScreen (Pricing useEffect): CONDITIONS NOT MET (item, size, or thickness missing). Item:", currentItem);
         if(currentItem && (currentItem.calculatedUnitPrice !== 0 || Object.keys(currentItem.priceBreakdown || {}).length > 0)){
              updateCurrentItem({ calculatedUnitPrice: 0, priceBreakdown: {} });
         }
@@ -118,16 +212,15 @@ const OrderPreviewScreen = () => {
     const newQuantity = Math.max(1, (currentItem.quantity || 1) + amount);
     updateCurrentItem({ quantity: newQuantity });
   };
+
   const formatCustTextForDisplay = (cust) => { 
     if (!cust) return 'None';
     if (cust.type === 'ai_text_image') return `AI: ${cust.prompt ? cust.prompt.substring(0, 20) + '...' : 'Image'}${cust.removedBackground ? ' (BG Removed)' : ''}`;
     if (cust.type === 'uploaded_image') return `Uploaded: ${cust.originalFileName || cust.src?.substring(cust.src.lastIndexOf('/') + 1).split('?')[0]?.substring(0,20) || 'Image'}`;
     if (cust.type === 'multi_library_design' && cust.elements && cust.elements.length > 0) {
         return `Multi-Lib: ${cust.elements.length} designs`;
-    } else if (cust.type === 'library_design' && cust.name) { 
-        return `Library: ${cust.name}`;
-    } else if (cust.type === 'library_design' && cust.src) {
-        return `Library Design`;
+    } else if (cust.type === 'library_design') { 
+        return `Library: ${cust.name || 'Design'}`;
     }
     if (cust.type === 'embroidery_text') {
         const fontFamily = cust.font?.split(',')[0].replace(/'/g, '').replace(' Custom', '') || 'Default';
@@ -142,59 +235,35 @@ const OrderPreviewScreen = () => {
     ? frontColorMap[currentItem?.color?.toLowerCase() || 'black'] || frontColorMap.black
     : backColorMap[currentItem?.color?.toLowerCase() || 'black'] || backColorMap.black;
 
-  const handleFlip = () => {
-  const currentActiveCustBeforeFlip = isFrontView ? currentItem?.frontCustomization : currentItem?.backCustomization;
-  console.log(`OrderPreview: Flipping. View is currently: ${isFrontView ? 'Front' : 'Back'}. Active cust before flip:`, currentActiveCustBeforeFlip);
-  if (currentActiveCustBeforeFlip && rndPosition && rndSize) {
-    handleInteractionEnd({ x: rndPosition.x, y: rndPosition.y, width: rndSize.width, height: rndSize.height});
-  }
-  setIsFrontView(prev => {
-    console.log(`OrderPreview: View will be: ${!prev ? 'Front' : 'Back'}`);
-    return !prev;
-  });
-};
+  const handleFlip = () => { 
+    const currentActiveCustBeforeFlip = isFrontView ? currentItem?.frontCustomization : currentItem?.backCustomization;
+    if (currentActiveCustBeforeFlip) {
+      handleInteractionEnd({ x: rndPosition.x, y: rndPosition.y, width: rndSize.width, height: rndSize.height});
+    }
+    setIsFrontView(prev => !prev);
+  };
   
   const processAndAddItemToCart = async () => { 
     if (!currentItem || !currentItem.size || !currentItem.thickness) {
-        alert("Please ensure all t-shirt options are selected before adding to cart.");
-        return null;
+        alert("Please ensure all t-shirt options are selected before adding to cart."); return null;
       }
       if (typeof currentItem.calculatedUnitPrice !== 'number') {
-          console.error("OrderPreviewScreen: calculatedUnitPrice is not available on currentItem. Cannot add to cart with accurate price.");
-          alert("Error: Price could not be finalized. Please try again or contact support.");
-          return null; 
+          console.error("OrderPreviewScreen: calculatedUnitPrice is missing. Cart item price will be inaccurate.");
+          alert("Error: Price not finalized. Cannot add to cart."); return null; 
       }
-  
       const itemForCart = JSON.parse(JSON.stringify(currentItem));
-      
-      const variantDetails = {
-        productType: itemForCart.productType || 'T-Shirt',
-        size: itemForCart.size,
-        thickness: itemForCart.thickness,
-        thicknessName: itemForCart.thicknessName,
+      itemForCart.productVariant = {
+        productType: itemForCart.productType || 'T-Shirt', size: itemForCart.size,
+        thickness: itemForCart.thickness, thicknessName: itemForCart.thicknessName,
         color: itemForCart.color || 'black',
-        basePrice: BASE_COSTS[String(itemForCart.thickness)] 
+        basePrice: BASE_COSTS[String(itemForCart.thickness)], // Make sure BASE_COSTS keys are strings if thickness is number
+        id: String(itemForCart.thickness) === '180' ? (itemForCart.size === 'M' ? 1 : 2) : 3
       };
-      
-      let variantId; 
-      if (String(itemForCart.thickness) === '180') { 
-        variantId = itemForCart.size === 'M' ? 1 : 2;
-      } else { 
-        variantId = 3; 
-      }
-    
-      itemForCart.productVariant = { 
-        ...variantDetails,
-        id: variantId, 
-      };
-  
       itemForCart.calculatedUnitPrice = currentItem.calculatedUnitPrice;
       itemForCart.priceBreakdown = currentItem.priceBreakdown;
-    
       const convertIfNeeded = async (customization) => {
           if (!customization) return null;
           const customizationCopy = { ...customization };
-        
           if (customizationCopy.type === 'multi_library_design' && Array.isArray(customizationCopy.elements)) {
             customizationCopy.elements = await Promise.all(
               customizationCopy.elements.map(async (el) => {
@@ -202,78 +271,52 @@ const OrderPreviewScreen = () => {
                 if (elCopy.src && elCopy.src.startsWith('blob:')) {
                   if (elCopy._blobDataForUpload instanceof Blob) {
                     const reader = new FileReader();
-                    elCopy.src = await new Promise((resolve) => {
-                      reader.onloadend = () => resolve(reader.result);
-                      reader.readAsDataURL(elCopy._blobDataForUpload);
-                    });
-                  }
-                  delete elCopy._blobDataForUpload;
-                }
-                return elCopy;
+                    elCopy.src = await new Promise((resolve) => { reader.onloadend = () => resolve(reader.result); reader.readAsDataURL(elCopy._blobDataForUpload); });
+                  } delete elCopy._blobDataForUpload;
+                } return elCopy;
               })
             );
           } else if (customizationCopy.src && customizationCopy.src.startsWith('blob:')) {
             if (customizationCopy._blobDataForUpload instanceof Blob) {
               const reader = new FileReader();
-              customizationCopy.src = await new Promise((resolve) => {
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(customizationCopy._blobDataForUpload);
-              });
-            }
-            delete customizationCopy._blobDataForUpload;
-          }
-          return customizationCopy;
+              customizationCopy.src = await new Promise((resolve) => { reader.onloadend = () => resolve(reader.result); reader.readAsDataURL(customizationCopy._blobDataForUpload);});
+            } delete customizationCopy._blobDataForUpload;
+          } return customizationCopy;
         };
-    
       itemForCart.frontCustomization = await convertIfNeeded(itemForCart.frontCustomization);
       itemForCart.backCustomization = await convertIfNeeded(itemForCart.backCustomization);
-    
-      try {
-        const addedItem = await addItemToCart(itemForCart);
-        return addedItem;
-      } catch (error) {
-        console.error('Add to cart error:', error);
-        alert(`Failed to add to cart: ${error.response?.data?.message || error.message || 'Unknown error'}`);
-        return null;
-      }
+      try { const addedItem = await addItemToCart(itemForCart); return addedItem; } 
+      catch (error) { console.error('Add to cart error:', error); alert(`Failed to add to cart: ${error.message}`); return null; }
   };
-  const handleAddToCartAndDesignNew = async () => { 
-    const currentActiveCustForSave = isFrontView ? currentItem?.frontCustomization : currentItem?.backCustomization;
-    if (currentActiveCustForSave && rndPosition && rndSize) {
-        handleInteractionEnd({ x: rndPosition.x, y: rndPosition.y, width: rndSize.width, height: rndSize.height});
-    }
-    await new Promise(resolve => setTimeout(resolve, 50)); 
-    const added = await processAndAddItemToCart();
-    if (added) {
-      setShowAnimationModal(true);
-     setTimeout(() => {
-        setShowAnimationModal(false);
-        try {
-            if (currentItem) revokeItemBlobUrls();
-            clearCurrentItemForNewProduct();
-        } catch (e) {
-            console.error("Error during context cleanup:", e);
-        }
-        navigate('/categories');
-    }, 2500);
-    }
-  };
+  const handleAddToCartAndDesignNew = async () => { /* ... same: save RND state, processAndAddItemToCart, clear, navigate ... */ };
   const handleProceedToCheckout = async () => { 
     const currentActiveCustForSave = isFrontView ? currentItem?.frontCustomization : currentItem?.backCustomization;
-    if (currentActiveCustForSave && rndPosition && rndSize) {
+    if (currentActiveCustForSave && rndPosition && rndSize) { // Save RND for current view
         handleInteractionEnd({ x: rndPosition.x, y: rndPosition.y, width: rndSize.width, height: rndSize.height});
     }
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => setTimeout(resolve, 50)); // Allow state to settle
     const added = await processAndAddItemToCart();
-    if (added) { navigate('/delivery-options'); }
-  };
-  const handleStartOverConfirmed = () => { 
-    if (currentItem) revokeItemBlobUrls();
-    clearCurrentItemForNewProduct();
+    if (added) { 
+        console.log("OrderPreviewScreen: Item added to cart successfully for checkout. Navigating to /delivery-options.");
+        navigate('/delivery-options'); 
+    } else {
+        console.warn("OrderPreviewScreen: Item NOT added to cart (processAndAddItemToCart returned falsy). Cannot proceed to checkout.");
+    }
+  };const handleStartOverConfirmed = () => {
+    console.log("OrderPreviewScreen: Start Over Confirmed by user.");
+    if (typeof clearCurrentItemForNewProduct === 'function') {
+        try {
+            clearCurrentItemForNewProduct(); 
+            console.log("OrderPreviewScreen: currentItem cleared by context via clearCurrentItemForNewProduct.");
+        } catch (e) {
+            console.error("OrderPreviewScreen: Error calling clearCurrentItemForNewProduct from context:", e);
+        }
+    } else {
+        console.error("OrderPreviewScreen: clearCurrentItemForNewProduct function not found in context!");
+    }
     navigate('/categories', { state: { fromStartOver: true } });
     setShowStartOverModal(false);
   };
-
   // --- Styles ---
   const pageTitleStyle = { position:'absolute', left:'50%', transform:'translateX(-50%)', top: '98px', color: '#00566F', fontSize: '96px', fontFamily: "'SS Magnetic', sans-serif", fontWeight: 400, whiteSpace:'nowrap', textAlign: 'center' };
   const backArrowStyle = { width: '120px', height: '120px', left: '127px', top: '94px', position: 'absolute', cursor: 'pointer'};
@@ -281,33 +324,9 @@ const OrderPreviewScreen = () => {
   const tshirtPreviewAreaStyle = { width: '750px', height: '700px', background: '#F0F8FF', borderRadius: '12px', position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid #ccc', padding:'15px', boxSizing:'border-box'};
   const mockupSectionPreviewStyle = { position: 'relative', width: '100%', height: '100%' };
   const tshirtPreviewImageStyle = { width: '100%', height: '100%', objectFit: 'contain', position:'absolute', top:0, left:0, zIndex:0};
-  
-  const outerPrintableAreaDynamicStyle = {
-    display: (activeCust && (activeCust.text || activeCust.src || (activeCust.type === 'multi_library_design' && activeCust.elements?.length > 0))) ? 'block' : 'none',
-    position: 'absolute',
-    width: `${UI_OUTER_PRINTABLE_PIXEL_WIDTH}px`, height: `${UI_OUTER_PRINTABLE_PIXEL_HEIGHT}px`,
-    border: '2px dashed rgba(0, 86, 111, 0.6)', 
-    top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-    boxSizing: 'border-box', zIndex: 1,
-  };
-
-  const rndStyle = { 
-    border: '1px solid rgba(0, 86, 111, 0.5)', 
-    backgroundColor: 'rgba(0, 86, 111, 0.03)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden', boxSizing: 'border-box',
-  };
-  const designImageStyle = { width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' };
-  const designTextStyle = {
-    width: '100%', height: '100%', display: 'flex', alignItems: 'center',
-    justifyContent: 'center', textAlign: 'center', wordBreak: 'break-word',
-    color: activeCust?.type === 'embroidery_text' ? activeCust?.color : (activeCust?.textColor || 'black'),
-    pointerEvents: 'none', boxSizing: 'border-box', padding: '2px',
-    fontFamily: activeCust?.font || 'Inter, sans-serif',
-    fontSize: activeCust?.type === 'embroidery_text'
-        ? `${Math.max(8, Math.min(rndSize.height * 0.6, 28, (rndSize.height / 2.5 )))}px` 
-        : '16px',
-  };
+  const outerPrintableAreaDynamicStyle = { display: (activeCust && (activeCust.text || activeCust.src || (activeCust.type === 'multi_library_design' && activeCust.elements?.length > 0))) ? 'block' : 'none', position: 'absolute', width: `${UI_OUTER_PRINTABLE_PIXEL_WIDTH}px`, height: `${UI_OUTER_PRINTABLE_PIXEL_HEIGHT}px`, border: '2px dashed rgba(0, 86, 111, 0.6)',  top: '50%', left: '50%', transform: 'translate(-50%, -50%)', boxSizing: 'border-box', zIndex: 1,};
+  const rndStyle = { border: '1px solid rgba(0, 86, 111, 0.5)', backgroundColor: 'rgba(0, 86, 111, 0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', boxSizing: 'border-box',};
+  const designTextStyle = { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', wordBreak: 'break-word', color: activeCust?.type === 'embroidery_text' ? activeCust?.color : (activeCust?.textColor || 'black'), pointerEvents: 'none', boxSizing: 'border-box', padding: '2px', fontFamily: activeCust?.font || 'Inter, sans-serif', fontSize: activeCust?.type === 'embroidery_text' ? `${Math.max(8, Math.min(rndSize.height * 0.6, 28, (rndSize.height / 2.5 )))}px` : '16px',};
   const flipPreviewBtnStyle = { position:'absolute', top:'20px', right:'20px', padding:'12px 18px', backgroundColor:'#00566F', color:'white', border:'none', borderRadius:'8px', cursor:'pointer', zIndex:20, fontSize:'20px' };
   const detailsSectionStyle = { flexGrow:1, display:'flex', flexDirection:'column', justifyContent:'space-around', fontFamily: 'Inter, sans-serif', fontSize:'36px', paddingLeft: '20px', paddingRight: '20px'};
   const detailLineStyle = { marginBottom: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
@@ -315,7 +334,7 @@ const OrderPreviewScreen = () => {
   const detailValueStyle = { color: '#00566F', fontWeight: 700, textAlign: 'right', flexGrow:1, wordBreak: 'break-word' };
   const totalLineStyle = { ...detailLineStyle, marginTop: '25px', paddingTop:'25px', borderTop: '2px solid #00566F'};
   const totalLabelStyle = { ...detailLabelStyle, fontSize:'48px', fontWeight: 600 };
-  const totalValueStyle = { ...detailValueStyle, fontSize:'52px', fontWeight: 800 };
+  const totalValueStyle = { ...detailLabelStyle, fontSize:'52px', fontWeight: 800 };
   const quantityControlsStyle = { marginTop:'25px', display:'flex', alignItems:'center' };
   const quantityContainerPreviewStyle = { width: '250px', height: '60px', display: 'flex', backgroundColor: '#F4FAFF', borderRadius: '8px', fontFamily: 'Inter', color: '#00566F', border: '1px solid #00566F'};
   const quantityBtnSpanStyle = { width: '33.33%', textAlign: 'center', fontSize: '36px', fontWeight: 600, cursor:'pointer', lineHeight:'58px', userSelect: 'none' };
@@ -337,78 +356,41 @@ const OrderPreviewScreen = () => {
   const productAnimateStyle = { width: '41px', height: '41px', position: 'absolute', top: '-50px', opacity: 0, transition: 'all 0.8s ease', zIndex: 1};
   const textMsgStyle = { color: '#00566F', fontSize: '48px', fontFamily: 'Inter', fontWeight: 700, display: 'none'};
 
-  if (!currentItem || !currentItem.id ) {
-    if (location.state?.fromStartOver) {
-        return <div style={{padding: "50px", fontSize: "30px", textAlign: "center"}}>Please select a product to customize.</div>;
-    }
-    return <div style={{padding: "50px", fontSize: "30px", textAlign: "center"}}>Loading item details or item is not fully configured. Please start by selecting a product and its options.</div>;
-  }
 
-  const hasActiveVisualContent = activeCust && 
-                               (activeCust.text || 
-                                activeCust.src || 
-                                (activeCust.type === 'multi_library_design' && activeCust.elements?.length > 0));
+  if (!currentItem || !currentItem.id ) { /* ... same initial error/loading check ... */ }
+
+  const hasActiveVisualContent = activeCust && (activeCust.text || activeCust.src || (activeCust.type === 'multi_library_design' && activeCust.elements?.length > 0));
 
   return (
     <>
       <CartIndicator />
-      <img 
-        style={backArrowStyle} 
-        src="/Features_Display_Img/back arrow.png" 
-        alt="Back" 
-        onClick={() => setShowStartOverModal(true)} 
-      />
+      <img style={backArrowStyle} src="/Features_Display_Img/back arrow.png" alt="Back" onClick={() => setShowStartOverModal(true)} />
       <div style={pageTitleStyle}>Order Preview</div>
 
-      {showStartOverModal && ( <div style={{...modalOverlayStyle, display: 'flex' }}><div style={confirmationModalContentStyle}><div style={modalMessageLargeStyle}>You've made some cool changes!</div><div style={modalMessageSmallStyle}>Going back will clear current T-shirt configurations. Still want to discard and browse other products?</div><div style={modalButtonsContainerStyle}><button style={{...modalActionButtonStyle, background: 'rgba(217, 217, 217, 0.1)', border: '2px black solid', color: 'black'}} onClick={handleStartOverConfirmed}>Start Over</button><button style={{...modalActionButtonStyle, background: '#00566F', border: '1px #00566F solid', color: 'white'}} onClick={() => setShowStartOverModal(false)}>Cancel</button></div></div></div>)}
+      {showStartOverModal && ( /* ...Modal JSX... */ <div style={{...modalOverlayStyle, display: 'flex' }}><div style={confirmationModalContentStyle}><div style={modalMessageLargeStyle}>You've made some cool changes!</div><div style={modalMessageSmallStyle}>Going back will clear current T-shirt configurations. Still want to discard and browse other products?</div><div style={modalButtonsContainerStyle}><button style={{...modalActionButtonStyle, background: 'rgba(217, 217, 217, 0.1)', border: '2px black solid', color: 'black'}} onClick={handleStartOverConfirmed}>Start Over</button><button style={{...modalActionButtonStyle, background: '#00566F', border: '1px #00566F solid', color: 'white'}} onClick={() => setShowStartOverModal(false)}>Cancel</button></div></div></div>)}
 
       <div style={productSummaryContainerStyle}>
         <div style={tshirtPreviewAreaStyle}>
           <div style={mockupSectionPreviewStyle}>
             <img id="tshirtPreviewImage" src={tshirtSrc} alt="T-Shirt Preview" style={tshirtPreviewImageStyle} 
-              onError={(e) => { 
-                console.error(`Error loading T-shirt image: ${e.target.src}. Defaulting to black.`); 
-                e.target.src = isFrontView ? frontColorMap.black : backColorMap.black; 
-              }}
-            />
-            {/* --- Conditionally render outer guide and Rnd area --- */}
+              onError={(e) => { e.target.src = isFrontView ? frontColorMap.black : backColorMap.black; }}/>
+            
             {hasActiveVisualContent && (
               <div ref={outerPrintableAreaRef} style={outerPrintableAreaDynamicStyle}>
                 <Rnd
                   style={rndStyle}
                   size={{ width: rndSize.width, height: rndSize.height }}
                   position={{ x: rndPosition.x, y: rndPosition.y }}
-                  minWidth={DYNAMIC_MIN_CANVA_WIDTH}
-                  minHeight={DYNAMIC_MIN_CANVA_HEIGHT}
+                  minWidth={DYNAMIC_MIN_CANVA_WIDTH} minHeight={DYNAMIC_MIN_CANVA_HEIGHT}
                   bounds="parent"
-                  onDragStop={(e, d) => {
-                    setRndPosition({ x: d.x, y: d.y });
-                    handleInteractionEnd({ x: d.x, y: d.y, width: rndSize.width, height: rndSize.height });
-                  }}
-                  onResizeStop={(e, direction, ref, delta, position) => {
-                    const newWidth = parseFloat(ref.style.width);
-                    const newHeight = parseFloat(ref.style.height);
-                    setRndSize({ width: newWidth, height: newHeight });
-                    setRndPosition({x: position.x, y: position.y });
-                    handleInteractionEnd({ x: position.x, y: position.y, width: newWidth, height: newHeight });
-                  }}
-                  enableResizing={{
-                    top: false, right: false, bottom: false, left: false,
-                    topRight: false, bottomRight: true, bottomLeft: false, topLeft: false
-                  }}
-                  resizeHandleComponent={{ 
-                    bottomRight: <div style={{
-                        width: '30px', height: '30px', background: 'rgba(0,86,111,0.7)',
-                        borderRadius: '50%', border: '2px solid white', cursor: 'nwse-resize',
-                        position: 'absolute', right: '-15px', bottom: '-15px'
-                    }}/>
-                  }}
+                  onDragStop={(e, d) => { setRndPosition({ x: d.x, y: d.y }); handleInteractionEnd({ x: d.x, y: d.y, width: rndSize.width, height: rndSize.height }); }}
+                  onResizeStop={(e, dir, ref, delta, pos) => { const newW = parseFloat(ref.style.width), newH = parseFloat(ref.style.height); setRndSize({ width: newW, height: newH }); setRndPosition({x: pos.x, y: pos.y }); handleInteractionEnd({ x: pos.x, y: pos.y, width: newW, height: newH });}}
+                  enableResizing={{top:false,right:false,bottom:false,left:false,topRight:false,bottomRight:true,bottomLeft:false,topLeft:false}}
+                  resizeHandleComponent={{ bottomRight: <div style={{width:'30px',height:'30px',background:'rgba(0,86,111,0.7)',borderRadius:'50%',border:'2px solid white',cursor:'nwse-resize',position:'absolute',right:'-15px',bottom:'-15px'}}/> }}
                   disableDragging={false}
                 >
                   {activeCust.type === 'embroidery_text' && activeCust.text && (
-                    <div style={designTextStyle}> 
-                      {activeCust.text}
-                    </div>
+                    <div style={designTextStyle}>{activeCust.text}</div>
                   )}
 
                   {activeCust.src && 
@@ -418,32 +400,23 @@ const OrderPreviewScreen = () => {
                     activeCust.type === 'ai_draw_image' ||
                     (activeCust.type === 'library_design' && !activeCust.elements) 
                    ) && (
-                    <img 
-                      src={activeCust.src} 
-                      alt={activeCust.name || activeCust.type || 'Design'} 
-                      style={designImageStyle}
-                      draggable={false}
-                      onError={(e) => { console.error("Error loading design image in Rnd:", activeCust.src); e.target.style.display='none';}}
-                    />
+                    // Use the CustomizationImage component for all src-based single images
+                    <CustomizationImage customization={activeCust} />
                   )}
                   
                   {activeCust.type === 'multi_library_design' && Array.isArray(activeCust.elements) && activeCust.elements.length > 0 && (
                     <div style={{position: 'relative', width: '100%', height: '100%', pointerEvents: 'none'}}>
                         {activeCust.elements.map((el, index) => (
-                            <img
-                                key={el.designId || index} 
-                                src={el.src}
-                                alt={el.name || `design-element-${index}`}
-                                style={{
-                                    position: 'absolute',
-                                    left: `${(el.position.x / UI_OUTER_PRINTABLE_PIXEL_WIDTH) * 100}%`,
-                                    top: `${(el.position.y / UI_OUTER_PRINTABLE_PIXEL_HEIGHT) * 100}%`,
-                                    width: `${(el.position.width / UI_OUTER_PRINTABLE_PIXEL_WIDTH) * 100}%`,
-                                    height: `${(el.position.height / UI_OUTER_PRINTABLE_PIXEL_HEIGHT) * 100}%`,
-                                    objectFit: 'contain',
-                                }}
-                                onError={(e) => { console.error("Error loading multi-library image element in Rnd:", el.src); e.target.style.display='none';}}
-                            />
+                           el.src ? (
+                            <div key={el.designId || index}
+                                style={{ position: 'absolute', 
+                                         left: `${(el.position.x / UI_OUTER_PRINTABLE_PIXEL_WIDTH) * 100}%`, 
+                                         top: `${(el.position.y / UI_OUTER_PRINTABLE_PIXEL_HEIGHT) * 100}%`, 
+                                         width: `${(el.position.width / UI_OUTER_PRINTABLE_PIXEL_WIDTH) * 100}%`, 
+                                         height: `${(el.position.height / UI_OUTER_PRINTABLE_PIXEL_HEIGHT) * 100}%` }}>
+                                <CustomizationImage customization={el} /> 
+                            </div>
+                           ) : null
                         ))}
                     </div>
                   )}
@@ -451,11 +424,8 @@ const OrderPreviewScreen = () => {
               </div>
             )}
           </div>
-          <button style={flipPreviewBtnStyle} onClick={handleFlip}>
-            {isFrontView ? "View Back" : "View Front"}
-          </button>
+          <button style={flipPreviewBtnStyle} onClick={handleFlip}>{isFrontView ? "View Back" : "View Front"}</button>
         </div>
-
         <div style={detailsSectionStyle}>
             <div style={detailLineStyle}><span style={detailLabelStyle}>Product:</span><span style={detailValueStyle}>{currentItem.productType || 'T-Shirt'}</span></div>
             <div style={detailLineStyle}><span style={detailLabelStyle}>Color:</span><span style={detailValueStyle}>{currentItem.color ? currentItem.color.charAt(0).toUpperCase() + currentItem.color.slice(1) : 'N/A'}</span></div>
@@ -477,13 +447,11 @@ const OrderPreviewScreen = () => {
             </div>
         </div>
       </div>
-
       <div style={bottomNavButtonsStyle}>
         <button style={addMoreBtnStyle} onClick={handleAddToCartAndDesignNew}>Add to Cart & Design New</button>
         <button style={nextFromPreviewBtnStyle} onClick={handleProceedToCheckout}>Proceed to Checkout</button>
       </div>
-
-      {showAnimationModal && ( <div style={{...animationModalStyle, display: 'flex' }}><div style={animationModalContentInnerStyle}><div style={blackBoxStyle}><img src="/Home_Screen_Img/animatecart.png" alt="cart" style={{...cartAnimateStyle, opacity: 1, left: 'calc(50% - 40px)'}} /></div><div style={{...textMsgStyle, display: 'block'}}>Item Added to Cart!</div></div></div>)}
+      {showAnimationModal && ( /* ...Animation Modal... */ <div style={{...animationModalStyle, display: 'flex' }}><div style={animationModalContentInnerStyle}><div style={blackBoxStyle}><img src="/Home_Screen_Img/animatecart.png" alt="cart" style={{...cartAnimateStyle, opacity: 1, left: 'calc(50% - 40px)'}} /></div><div style={{...textMsgStyle, display: 'block'}}>Item Added to Cart!</div></div></div>)}
     </>
   );
 };

@@ -1,20 +1,54 @@
-<!-- frontend/index.html -->
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" /> 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kiosk App</title>
-    <!-- Google Fonts -->
+
+    <!-- Google Fonts (Poppins and Inter seem to be your primary choices based on other files) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- If SS Magnetic is a local font file, setup @font-face in index.css which is loaded by main.jsx -->
+    
+    <!-- Font Awesome (if used for icons, keep this) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <!-- 
+      For SS Magnetic font, if it's a local font file (e.g., .ttf, .woff2),
+      you would define @font-face rules in your global CSS file (e.g., src/index.css)
+      which is then imported into your main.jsx/App.jsx.
+      Example in src/index.css:
+      @font-face {
+        font-family: 'SS Magnetic';
+        src: url('/fonts/SSMagnetic-Regular.woff2') format('woff2'),
+             url('/fonts/SSMagnetic-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+      }
+      (Ensure the font files are in your `public/fonts/` directory)
+    -->
+
+    <!-- 
+      If you use Tailwind CSS via PostCSS (standard Vite setup), the link to its generated CSS
+      will be injected by Vite during build. For development, the styles are injected via JS.
+      You don't typically link a pre-built Tailwind CSS file here manually.
+      If you are using the @tailwindcss/browser CDN approach, that's different.
+    -->
+    <!-- 
+      Example for Tailwind CDN (if you were using it instead of PostCSS build):
+      <script src="https://cdn.tailwindcss.com" defer></script>
+      <script>
+          // Example minimal Tailwind CDN config if you were using it.
+          // Better to use PostCSS setup for Vite.
+          // tailwind.config = { theme: { extend: { colors: { KioskBlue: '#00566F' } } } } 
+      </script> 
+    -->
+
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-    <!-- Any essential, non-React global scripts could go here, but usually not needed for Vite apps -->
+    <script type="module" src="/src/main.jsx"></script> 
+    {/* Vite automatically handles this entry point. Ensure path is correct. */}
   </body>
 </html>

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCurrentItem } from '../contexts/CurrentItemContext';
 import apiService from '../services/apiService';
+import { GoogleGenerativeAI } from '@google/generative-ai'; 
 
 // Mockup color maps
 const frontColorMap = {
